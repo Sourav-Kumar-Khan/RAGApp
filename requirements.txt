@@ -2,10 +2,11 @@ fastapi
 uvicorn
 pydantic
 ollama
-langcahin
+langchain
 crewai
 gTTS 
 pydub
 pygame
 SpeechRecognition
 PyAudio
+gradio
