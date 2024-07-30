@@ -39,7 +39,32 @@ async def process_query(query: Query):
         return JSONResponse(content={"response": response}, status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+# Backend (Python using FastAPI)
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
+import asyncio
+
+# app = FastAPI()
+
+import ollama
+
+def fake_model_stream(query:str):
+    stream = ollama.chat(
+        model='gemma:2b-instruct',
+        messages=[{'role': 'user', 'content': query}],
+        stream=True,
+    )
+
+    for chunk in stream:
+        yield chunk['message']['content']
+
+@app.get("/stream")
+async def stream_response(query: str):
+    return StreamingResponse(fake_model_stream(query), media_type="text/event-stream")
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+

@@ -1,3 +1,11 @@
 fastapi
 uvicorn
 pydantic
+ollama
+langcahin
+crewai
+gTTS 
+pydub
+pygame
+SpeechRecognition
+PyAudio
