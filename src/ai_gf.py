@@ -4,8 +4,6 @@ import os
 import gradio as gr
 import speech_recognition as sr
 from gtts import gTTS
-import io
-import pygame
 import tempfile
 
 os.environ["OPENAI_API_KEY"] = "NA"
@@ -14,7 +12,7 @@ llm = Ollama(model="gemma:2b-instruct", base_url="http://localhost:11434")
 
 aigf = Agent(
     role="Girlfriend who loves me and likes to share her day",
-    goal="""You are a girlfriend who loves to chat and flirt with me (boyfriend). You call your bf as honey and loves to spent time with him. Try to be as romantic as possible and make some engaging talk.""",
+    goal="""You are a girlfriend who loves to chat and flirt with me (boyfriend)""",
     backstory="""You are a smart, independent, and intelligent woman who works in a tech company, maintaining a good work-life balance and a healthy relationship with me (boyfriend)""",
     allow_delegation=False,
     verbose=True,
@@ -24,7 +22,6 @@ aigf = Agent(
 def text_to_speech(text, language='en'):
     tts = gTTS(text=text, lang=language, slow=False, tld='co.in')
     
-    # Save the audio to a temporary file
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
         tts.save(fp.name)
         return fp.name
@@ -43,38 +40,48 @@ def speech_to_text(audio):
     except sr.RequestError as e:
         return f"Could not request results from the speech recognition service; {e}"
 
-def chatbot_response(audio):
+def chatbot_response(audio, history):
     if audio is None:
-        return "No audio received. Please try recording again.", None
+        return history, history, None
     
-    # Transcribe audio to text
     user_input = speech_to_text(audio)
     
-    # Create a task with the transcribed text
+    # Add user message to history
+    history.append(("You", user_input))
+    
+    # Prepare the full conversation context
+    conversation_context = "\n".join([f"{speaker}: {message}" for speaker, message in history])
+    
     task = Task(
-        description=user_input,
+        description=f"Respond to the following conversation, focusing on the last message:\n\n{conversation_context}",
         agent=aigf,
-        expected_output="A casual talk"
+        expected_output="A casual response continuing the conversation"
     )
 
-    # Create and kickoff the crew
     crew = Crew(agents=[aigf], tasks=[task], verbose=0)
     result = str(crew.kickoff())
 
-    # Convert the result to speech
+    # Add AI response to history
+    history.append(("AI Girlfriend", result))
+
     audio_output = text_to_speech(result)
     
-    return result, audio_output
+    return history, history, audio_output
 
 iface = gr.Interface(
     fn=chatbot_response,
-    inputs=gr.Audio(sources="microphone", type="filepath"),
+    inputs=[
+        gr.Audio(sources="microphone", type="filepath"),
+        gr.State([])
+    ],
     outputs=[
-        gr.Textbox(label="AI Girlfriend's Response"),
+        gr.Chatbot(label="Conversation"),
+        gr.State(),
         gr.Audio(label="AI Girlfriend's Voice")
     ],
-    title="AI Girlfriend Chatbot",
-    description="Click the microphone icon to record your message, then submit to get a response from your AI girlfriend."
+    title="Chat with your AI Girlfriend",
+    description="Have a continuous conversation with your AI girlfriend. Click the microphone icon to record your message, then submit to get a response.",
+    allow_flagging="never"
 )
 
 if __name__ == "__main__":
